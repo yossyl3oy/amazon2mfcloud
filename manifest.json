@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "Amazon2MFCloud",
+  "version": "0.1.0",
+  "description": "Amazon.co.jp の注文履歴を MFクラウド会計用 CSV としてエクスポート",
+  "permissions": ["activeTab", "storage"],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.amazon.co.jp/your-orders/*",
+        "https://www.amazon.co.jp/gp/your-account/order-history*",
+        "https://www.amazon.co.jp/gp/css/order-history*"
+      ],
+      "js": [
+        "lib/scraper.js",
+        "content/content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Amazon2MFCloud</h1>
+    <p class="subtitle">注文履歴 → MFクラウド CSV</p>
+
+    <button id="fetchBtn" class="btn primary">注文データを取得</button>
+    <button id="fetchAllBtn" class="btn primary">全件取得</button>
+
+    <p id="progress" class="status" hidden></p>
+
+    <div id="resultInfo" class="result-info" hidden>
+      <span id="orderCount">0</span>件の明細を取得
+    </div>
+
+    <button id="downloadBtn" class="btn success" disabled>CSVダウンロード</button>
+    <button id="clearBtn" class="btn" hidden>データをクリア</button>
+
+    <p id="status" class="status">Amazon.co.jpの注文履歴を開いてください</p>
+  </div>
+
+  <script src="../lib/csv.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
