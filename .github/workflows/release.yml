@@ -2,8 +2,9 @@ name: Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -13,15 +14,76 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version from manifest.json
+        id: get-version
+        run: echo "version=$(node -p "require('./manifest.json').version")" >> $GITHUB_OUTPUT
+
+      - name: Check if release exists
+        id: check-release
+        run: |
+          TAG="v${{ steps.get-version.outputs.version }}"
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            ASSETS=$(gh release view "$TAG" --json assets -q '.assets[].name' 2>/dev/null || echo "")
+            if echo "$ASSETS" | grep -q "\.zip"; then
+              echo "skip=true" >> $GITHUB_OUTPUT
+              echo "Release $TAG already exists with assets, skipping"
+            else
+              echo "skip=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate changelog
+        id: changelog
+        if: steps.check-release.outputs.skip != 'true'
+        run: |
+          PREV_TAG=$(gh release list --limit 1 --json tagName -q '.[0].tagName' 2>/dev/null || echo "")
+          if [ -n "$PREV_TAG" ]; then
+            git fetch origin "refs/tags/${PREV_TAG}:refs/tags/${PREV_TAG}" 2>/dev/null || PREV_TAG=""
+          fi
+          if [ -z "$PREV_TAG" ] || ! git rev-parse "${PREV_TAG}" > /dev/null 2>&1; then
+            COMMITS=$(git log --pretty=format:"- %s (%h)" --no-merges -20)
+          else
+            COMMITS=$(git log "${PREV_TAG}..HEAD" --pretty=format:"- %s (%h)" --no-merges)
+          fi
+          {
+            echo "commits<<EOF"
+            echo "$COMMITS"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build ZIP
+        if: steps.check-release.outputs.skip != 'true'
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${{ steps.get-version.outputs.version }}"
           zip -r "amazon2mfcloud-v${VERSION}.zip" \
-            manifest.json popup/ content/ lib/ icons/
+            manifest.json popup/ content/ lib/ icons/ \
+            -x "*.DS_Store"
 
       - name: Create Release
+        if: steps.check-release.outputs.skip != 'true'
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: v${{ steps.get-version.outputs.version }}
+          name: Amazon2MFCloud v${{ steps.get-version.outputs.version }}
+          body: |
+            ## Amazon2MFCloud v${{ steps.get-version.outputs.version }}
+
+            Amazon.co.jp の注文履歴を MFクラウド会計用 CSV としてエクスポートする Chrome 拡張機能
+
+            ### インストール
+            1. ZIP をダウンロードして解凍
+            2. Chrome で `chrome://extensions` を開く
+            3. 「デベロッパーモード」を有効にして「パッケージ化されていない拡張機能を読み込む」
+
+            ### Changes
+            ${{ steps.changelog.outputs.commits }}
           files: amazon2mfcloud-*.zip
-          generate_release_notes: true
